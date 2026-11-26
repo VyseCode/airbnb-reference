@@ -145,6 +145,8 @@ export default async function HostPage() {
                         role="host"
                         status={booking.status}
                         reviewId={booking.reviewId}
+                        reviewDeadline={booking.reviewDeadline}
+                        reviewWindowOpen={booking.reviewWindowOpen}
                       />
                     </td>
                   </tr>

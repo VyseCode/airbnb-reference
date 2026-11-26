@@ -131,6 +131,7 @@ export async function actOnBooking(
       return { ok: false, error: "Only confirmed stays can be completed", status: 409 };
     }
     booking.status = "completed";
+    booking.completedAt = new Date();
   }
 
   await booking.save();

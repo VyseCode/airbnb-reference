@@ -5,6 +5,7 @@ import { BlockedDate } from "@/models/BlockedDate";
 import { Review } from "@/models/Review";
 import { Wishlist } from "@/models/Wishlist";
 import { nightsInRange } from "@/lib/dates";
+import { getReviewWindow } from "@/lib/stayCompletion";
 import type {
   BookingDTO,
   BookingStatus,
@@ -46,6 +47,8 @@ type LeanBooking = {
   serviceFee: number;
   total: number;
   status: BookingStatus;
+  completedAt?: Date | null;
+  updatedAt: Date;
   createdAt: Date;
 };
 
@@ -223,6 +226,7 @@ export async function getListingById(
 }
 
 export function toBookingDTO(booking: LeanBooking): BookingDTO {
+  const window = getReviewWindow(booking);
   return {
     id: booking._id.toString(),
     listingId: booking.listing?._id.toString() ?? "",
@@ -238,6 +242,9 @@ export function toBookingDTO(booking: LeanBooking): BookingDTO {
     total: booking.total,
     guests: booking.guests,
     status: booking.status,
+    completedAt: window.completedAt?.toISOString() ?? null,
+    reviewDeadline: window.deadline?.toISOString() ?? null,
+    reviewWindowOpen: window.status === "open",
     reviewId: null,
     createdAt: booking.createdAt.toISOString(),
   };

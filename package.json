@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "seed": "node scripts/seed.mjs"
+    "seed": "node scripts/seed.mjs",
+    "jobs:complete-stays": "node scripts/complete-stays.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

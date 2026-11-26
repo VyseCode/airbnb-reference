@@ -56,6 +56,9 @@ export type BookingDTO = {
   total: number;
   guests: number;
   status: BookingStatus;
+  completedAt: string | null;
+  reviewDeadline: string | null;
+  reviewWindowOpen: boolean;
   reviewId: string | null;
   createdAt: string;
 };

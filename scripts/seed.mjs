@@ -84,12 +84,15 @@ const bookingSchema = new mongoose.Schema(
     serviceFee: Number,
     total: Number,
     status: String,
+    completedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
 bookingSchema.index({ guest: 1, createdAt: -1 });
 bookingSchema.index({ host: 1, status: 1, createdAt: -1 });
 bookingSchema.index({ listing: 1, checkIn: 1 });
+bookingSchema.index({ listing: 1, status: 1 });
+bookingSchema.index({ status: 1, checkOut: 1 });
 
 const reviewSchema = new mongoose.Schema(
   {
@@ -103,6 +106,22 @@ const reviewSchema = new mongoose.Schema(
 );
 reviewSchema.index({ listing: 1, createdAt: -1 });
 
+const notificationSchema = new mongoose.Schema(
+  {
+    recipient: mongoose.Schema.Types.ObjectId,
+    type: String,
+    booking: mongoose.Schema.Types.ObjectId,
+    listing: mongoose.Schema.Types.ObjectId,
+    message: String,
+  },
+  { timestamps: true },
+);
+notificationSchema.index(
+  { recipient: 1, type: 1, booking: 1 },
+  { unique: true },
+);
+notificationSchema.index({ recipient: 1, createdAt: -1 });
+
 const wishlistSchema = new mongoose.Schema(
   { user: mongoose.Schema.Types.ObjectId, listing: mongoose.Schema.Types.ObjectId },
   { timestamps: { createdAt: true, updatedAt: false } },
@@ -114,6 +133,7 @@ const Listing = mongoose.model("Listing", listingSchema);
 const BlockedDate = mongoose.model("BlockedDate", blockedDateSchema);
 const Booking = mongoose.model("Booking", bookingSchema);
 const Review = mongoose.model("Review", reviewSchema);
+const Notification = mongoose.model("Notification", notificationSchema);
 const Wishlist = mongoose.model("Wishlist", wishlistSchema);
 
 const people = [
@@ -300,6 +320,7 @@ async function main() {
     BlockedDate.createIndexes(),
     Booking.createIndexes(),
     Review.createIndexes(),
+    Notification.createIndexes(),
     Wishlist.createIndexes(),
   ]);
 
@@ -309,6 +330,7 @@ async function main() {
     BlockedDate.deleteMany({}),
     Booking.deleteMany({}),
     Review.deleteMany({}),
+    Notification.deleteMany({}),
     Wishlist.deleteMany({}),
   ]);
 
@@ -323,7 +345,7 @@ async function main() {
     blocked.map((item) => ({ ...item, listing: listings[item.listing]._id })),
   );
 
-  const bookingDocs = bookings.map((booking) => {
+  const bookingDocs = bookings.map((booking, index) => {
     const listing = listings[booking.listing];
     const nights = nightsBetween(booking.checkIn, booking.checkOut);
     return {
@@ -334,6 +356,10 @@ async function main() {
       nights,
       pricePerNight: listing.pricePerNight,
       ...totals(listing.pricePerNight, nights),
+      completedAt:
+        booking.status === "completed"
+          ? new Date(Date.now() - (index + 1) * NIGHT_MS)
+          : null,
     };
   });
   const createdBookings = await Booking.create(bookingDocs);
