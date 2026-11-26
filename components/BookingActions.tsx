@@ -11,6 +11,8 @@ type BookingActionsProps = {
   role: "guest" | "host";
   status: BookingStatus;
   reviewId: string | null;
+  reviewDeadline: string | null;
+  reviewWindowOpen: boolean;
 };
 
 export function BookingActions({
@@ -19,6 +21,8 @@ export function BookingActions({
   role,
   status,
   reviewId,
+  reviewDeadline,
+  reviewWindowOpen,
 }: BookingActionsProps) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -87,14 +91,21 @@ export function BookingActions({
           >
             Reviewed
           </Link>
-        ) : (
+        ) : reviewWindowOpen ? (
           <Link
             href={`/listings/${listingId}?review=${bookingId}`}
             className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
           >
             Write review
           </Link>
+        ) : (
+          <span className="text-xs text-slate-500">Review window closed</span>
         ))}
+      {status === "completed" && !reviewId && reviewDeadline && (
+        <span className="text-xs text-slate-500">
+          Closes {reviewDeadline.slice(0, 10)}
+        </span>
+      )}
       {error && <span className="text-xs text-red-600">{error}</span>}
     </div>
   );

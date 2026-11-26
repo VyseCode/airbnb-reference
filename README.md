@@ -9,7 +9,8 @@ A reference implementation inspired by **Airbnb**: a stays marketplace where use
 - **Search & discovery** — keyword and location search, type/price/guests/amenity filters, date availability filtering, sorting, and capped pagination.
 - **Availability** — per-listing host-blocked dates and a public availability feed.
 - **Bookings** — nightly subtotal + 12% service fee, overlap/date-range/capacity guards, pending → confirmed → completed/cancelled states, and host/guest confirm/cancel permissions.
-- **Reviews** — 1–5 stars, only after a completed stay, one per booking, with atomic aggregate rating updates.
+- **Stay automation** — an idempotent cron job completes confirmed stays after checkout, invites guests to review, and notifies hosts.
+- **Reviews** — 1–5 stars, only within a 14-day window after completion, one per booking, with atomic aggregate rating updates.
 - **Wishlists** — save/unsave listings, one entry per user and listing.
 - **Dashboards** — host listings and incoming booking requests; guest trips with status, breakdown, and review links.
 - **Responsive UI** — grid, detail page with booking widget, loading/empty/error states.
@@ -31,6 +32,7 @@ npm run dev
 | --- | --- | --- |
 | `MONGODB_URI` | `mongodb://127.0.0.1:27017/airbnb_ref` | MongoDB connection; seed refuses to wipe any other database. |
 | `JWT_SECRET` | long random string | Signs session tokens. |
+| `CRON_SECRET` | long random string | Bearer token required by the stay-completion cron endpoint. |
 
 ## Seed
 
@@ -76,6 +78,11 @@ Demo accounts (all password `password123`):
 | GET | `/api/wishlist` | user | Saved listings |
 | POST | `/api/wishlist` | user | Toggle save (`listingId`) |
 | DELETE | `/api/wishlist/[listingId]` | user | Remove saved listing |
+| GET, POST | `/api/cron/complete-stays` | `Bearer CRON_SECRET` | Complete stays whose checkout date has passed and emit notifications |
+
+`vercel.json` schedules `GET /api/cron/complete-stays` hourly; Vercel Cron sends the configured `CRON_SECRET` as the bearer token. For a self-hosted deployment, call the endpoint from any scheduler or run `APP_URL=http://127.0.0.1:3206 CRON_SECRET=... npm run jobs:complete-stays`. Re-running the job is safe: the status guard completes each booking once and notification hooks are deduplicated per booking and recipient.
+
+Guest review invitations and host completion notices are persisted in the `notifications` collection and passed to `deliverNotification` in `lib/notifications.ts`, the single swap point for an email/SMS provider.
 
 ## Pages
 
@@ -94,11 +101,11 @@ Demo accounts (all password `password123`):
 ## Known limitations
 
 - There is no payment integration; booking is a request that the host confirms, and totals are informational.
-- Completion is explicit (`complete` action after checkout) rather than driven by a scheduled job.
+- Manual completion is still available, but scheduled completion is the default path; the cron endpoint must be invoked by a scheduler.
 - Availability guards are enforced in application code; concurrent booking requests for the same nights are not wrapped in a MongoDB transaction (standalone MongoDB).
 - Images are local SVG placeholders; there is no image upload.
 - Text search uses escaped regexes rather than a dedicated search index.
-- Email verification, password reset, messaging, and cancellation refunds are out of scope.
+- Email verification, password reset, messaging, and cancellation refunds are out of scope; stay notifications are in-app records plus a console delivery hook rather than delivered email.
 
 ## Verification
 

@@ -11,6 +11,7 @@ import { BlockedDatesManager } from "@/components/BlockedDatesManager";
 import { BlockedDate } from "@/models/BlockedDate";
 import { Booking } from "@/models/Booking";
 import { Review } from "@/models/Review";
+import { isReviewOpen } from "@/lib/stayCompletion";
 import { ReviewForm } from "@/components/ReviewForm";
 import { WishlistButton } from "@/components/WishlistButton";
 
@@ -50,11 +51,18 @@ export default async function ListingDetailPage({
           guest: session.userId,
           status: "completed",
         })
-          .select("_id")
+          .select("_id completedAt updatedAt checkOut")
           .lean()
       : null;
   const canReview =
-    Boolean(reviewBooking) && !(await Review.exists({ booking: reviewBooking!._id }));
+    Boolean(reviewBooking) &&
+    isReviewOpen({
+      status: "completed",
+      completedAt: reviewBooking?.completedAt,
+      updatedAt: reviewBooking?.updatedAt,
+      checkOut: reviewBooking?.checkOut ?? "",
+    }) &&
+    !(await Review.exists({ booking: reviewBooking!._id }));
 
   return (
     <section className="space-y-6">

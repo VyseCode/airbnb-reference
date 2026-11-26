@@ -7,6 +7,7 @@ import { Listing } from "@/models/Listing";
 import { Review } from "@/models/Review";
 import { objectIdSchema, reviewCreateSchema } from "@/lib/schemas";
 import { getListingReviews } from "@/lib/queries";
+import { getReviewWindow } from "@/lib/stayCompletion";
 import { z } from "zod";
 
 const paramsSchema = z.object({ id: objectIdSchema });
@@ -37,7 +38,7 @@ export async function POST(
     await connectDB();
 
     const booking = await Booking.findById(body.bookingId).select(
-      "listing guest status",
+      "listing guest status completedAt updatedAt",
     );
     if (!booking || booking.listing.toString() !== id) {
       return fail("Booking not found for this listing", 404);
@@ -45,8 +46,12 @@ export async function POST(
     if (booking.guest.toString() !== session.userId) {
       return fail("Only the guest can review this stay", 403);
     }
-    if (booking.status !== "completed") {
+    const reviewWindow = getReviewWindow(booking);
+    if (reviewWindow.status === "not_completed") {
       return fail("You can only review a completed stay", 403);
+    }
+    if (reviewWindow.status === "closed") {
+      return fail("The review window for this stay has closed", 403);
     }
     if (await Review.exists({ booking: booking._id })) {
       return fail("You have already reviewed this stay", 409);

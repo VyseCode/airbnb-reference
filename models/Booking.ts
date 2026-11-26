@@ -23,6 +23,7 @@ export interface IBooking {
   serviceFee: number;
   total: number;
   status: BookingStatus;
+  completedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,6 +62,7 @@ const bookingSchema = new Schema<IBooking>(
       default: "pending",
       index: true,
     },
+    completedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
@@ -69,6 +71,7 @@ bookingSchema.index({ guest: 1, createdAt: -1 });
 bookingSchema.index({ host: 1, status: 1, createdAt: -1 });
 bookingSchema.index({ listing: 1, checkIn: 1 });
 bookingSchema.index({ listing: 1, status: 1 });
+bookingSchema.index({ status: 1, checkOut: 1 });
 
 export const Booking: Model<IBooking> =
   (models.Booking as Model<IBooking>) || model<IBooking>("Booking", bookingSchema);

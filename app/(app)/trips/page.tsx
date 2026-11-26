@@ -92,6 +92,8 @@ export default async function TripsPage() {
                     role="guest"
                     status={booking.status}
                     reviewId={booking.reviewId}
+                    reviewDeadline={booking.reviewDeadline}
+                    reviewWindowOpen={booking.reviewWindowOpen}
                   />
                 </div>
               </div>
