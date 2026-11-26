@@ -19,6 +19,7 @@ export async function GET(
     const dates = await BlockedDate.find({ listing: id })
       .select("date -_id")
       .sort({ date: 1 })
+      .limit(200)
       .lean();
     return ok({ dates: dates.map((item) => item.date) });
   } catch (error) {

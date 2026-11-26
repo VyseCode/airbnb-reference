@@ -24,6 +24,7 @@ export interface IListing {
   images: string[];
   ratingAvg: number;
   ratingCount: number;
+  ratingSum: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,6 +56,7 @@ const listingSchema = new Schema<IListing>(
     images: { type: [String], default: [] },
     ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0, min: 0 },
+    ratingSum: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true },
 );
@@ -63,6 +65,8 @@ listingSchema.index({ "location.city": "text", "location.country": "text", title
 listingSchema.index({ host: 1, createdAt: -1 });
 listingSchema.index({ propertyType: 1, pricePerNight: 1 });
 listingSchema.index({ pricePerNight: 1, createdAt: -1 });
+listingSchema.index({ createdAt: -1 });
+listingSchema.index({ ratingAvg: -1, ratingCount: -1 });
 
 export const Listing: Model<IListing> =
   (models.Listing as Model<IListing>) ||

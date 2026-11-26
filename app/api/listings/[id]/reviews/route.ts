@@ -60,20 +60,20 @@ export async function POST(
       comment: body.comment,
     });
 
-    const stats = await Review.aggregate([
-      { $match: { listing: new Types.ObjectId(id) } },
-      { $group: { _id: "$listing", avg: { $avg: "$rating" }, count: { $sum: 1 } } },
-    ]);
-    const stat = stats[0] ?? { avg: 0, count: 0 };
-    await Listing.updateOne(
-      { _id: id },
-      {
-        $set: {
-          ratingAvg: Math.round(stat.avg * 10) / 10,
-          ratingCount: stat.count,
-        },
-      },
-    );
+    const updated = await Listing.findByIdAndUpdate(
+      id,
+      { $inc: { ratingCount: 1, ratingSum: body.rating } },
+      { returnDocument: "after" },
+    )
+      .select("ratingCount ratingSum")
+      .lean();
+    if (updated) {
+      const avg = updated.ratingSum / Math.max(1, updated.ratingCount);
+      await Listing.updateOne(
+        { _id: id },
+        { $set: { ratingAvg: Math.round(avg * 10) / 10 } },
+      );
+    }
 
     return ok(
       {

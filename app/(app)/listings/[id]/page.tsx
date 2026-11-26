@@ -31,7 +31,11 @@ export default async function ListingDetailPage({
   await connectDB();
   const [listing, blockedDates, reviews] = await Promise.all([
     getListingById(id, session?.userId ?? ""),
-    BlockedDate.find({ listing: id }).select("date -_id").sort({ date: 1 }).lean(),
+    BlockedDate.find({ listing: id })
+      .select("date -_id")
+      .sort({ date: 1 })
+      .limit(200)
+      .lean(),
     getListingReviews(id),
   ]);
   if (!listing) notFound();

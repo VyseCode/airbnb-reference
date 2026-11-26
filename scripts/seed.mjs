@@ -56,6 +56,7 @@ const listingSchema = new mongoose.Schema(
     images: [String],
     ratingAvg: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
+    ratingSum: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
@@ -357,15 +358,23 @@ async function main() {
     const listingId = listings[review.listing]._id;
     const stats = await Review.aggregate([
       { $match: { listing: listingId } },
-      { $group: { _id: "$listing", avg: { $avg: "$rating" }, count: { $sum: 1 } } },
+      {
+        $group: {
+          _id: "$listing",
+          avg: { $avg: "$rating" },
+          count: { $sum: 1 },
+          sum: { $sum: "$rating" },
+        },
+      },
     ]);
-    const stat = stats[0] ?? { avg: 0, count: 0 };
+    const stat = stats[0] ?? { avg: 0, count: 0, sum: 0 };
     await Listing.updateOne(
       { _id: listingId },
       {
         $set: {
           ratingAvg: Math.round(stat.avg * 10) / 10,
           ratingCount: stat.count,
+          ratingSum: stat.sum,
         },
       },
     );

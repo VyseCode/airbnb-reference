@@ -17,10 +17,15 @@ export async function GET(
     await connectDB();
 
     const [blockedDates, bookings] = await Promise.all([
-      BlockedDate.find({ listing: id }).select("date -_id").sort({ date: 1 }).lean(),
+      BlockedDate.find({ listing: id })
+        .select("date -_id")
+        .sort({ date: 1 })
+        .limit(200)
+        .lean(),
       Booking.find({ listing: id, status: { $in: ["pending", "confirmed"] } })
         .select("checkIn checkOut -_id")
         .sort({ checkIn: 1 })
+        .limit(200)
         .lean(),
     ]);
 
