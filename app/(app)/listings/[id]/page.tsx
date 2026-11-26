@@ -3,32 +3,54 @@ import Link from "next/link";
 import { Types } from "mongoose";
 import { getSession } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
-import { getListingById } from "@/lib/queries";
+import { getListingById, getListingReviews } from "@/lib/queries";
 import { Avatar } from "@/components/Avatar";
 import { ListingActions } from "@/components/ListingActions";
 import { BookingWidget } from "@/components/BookingWidget";
 import { BlockedDatesManager } from "@/components/BlockedDatesManager";
 import { BlockedDate } from "@/models/BlockedDate";
+import { Booking } from "@/models/Booking";
+import { Review } from "@/models/Review";
+import { ReviewForm } from "@/components/ReviewForm";
+import { WishlistButton } from "@/components/WishlistButton";
 
 export const metadata = { title: "Stay details" };
 
 export default async function ListingDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
   if (!Types.ObjectId.isValid(id)) notFound();
 
   const session = await getSession();
   await connectDB();
-  const [listing, blockedDates] = await Promise.all([
+  const [listing, blockedDates, reviews] = await Promise.all([
     getListingById(id, session?.userId ?? ""),
     BlockedDate.find({ listing: id }).select("date -_id").sort({ date: 1 }).lean(),
+    getListingReviews(id),
   ]);
   if (!listing) notFound();
 
   const isHost = session?.userId === listing.host.id;
+  const reviewId = typeof query.review === "string" ? query.review : "";
+  const reviewBooking =
+    session && Types.ObjectId.isValid(reviewId)
+      ? await Booking.findOne({
+          _id: reviewId,
+          listing: id,
+          guest: session.userId,
+          status: "completed",
+        })
+          .select("_id")
+          .lean()
+      : null;
+  const canReview =
+    Boolean(reviewBooking) && !(await Review.exists({ booking: reviewBooking!._id }));
 
   return (
     <section className="space-y-6">
@@ -37,7 +59,14 @@ export default async function ListingDetailPage({
           <Link href="/explore" className="text-sm text-[#ff385c] hover:underline">
             ← Back to explore
           </Link>
-          <h1 className="mt-2 text-3xl font-semibold text-slate-900">{listing.title}</h1>
+          <div className="mt-2 flex items-center gap-3">
+            <h1 className="text-3xl font-semibold text-slate-900">{listing.title}</h1>
+            <WishlistButton
+              listingId={listing.id}
+              initial={listing.wishlisted}
+              signedIn={Boolean(session)}
+            />
+          </div>
           <p className="mt-1 text-slate-500">
             {listing.location.address
               ? `${listing.location.address}, `
@@ -109,6 +138,36 @@ export default async function ListingDetailPage({
                   ))}
                 </ul>
               </div>
+            )}
+          </div>
+
+          {canReview && (
+            <ReviewForm listingId={listing.id} bookingId={reviewBooking!._id.toString()} />
+          )}
+
+          <div className="rounded-xl border border-slate-200 bg-white p-6">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Reviews {reviews.length > 0 && `(${reviews.length})`}
+            </h2>
+            {reviews.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-500">
+                No reviews yet. Reviews appear after a stay is completed.
+              </p>
+            ) : (
+              <ul className="mt-4 space-y-4">
+                {reviews.map((review) => (
+                  <li key={review.id} className="flex gap-3 border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+                    <Avatar name={review.author.name} src={review.author.avatarUrl} size="sm" />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {review.author.name}{" "}
+                        <span className="ml-1 text-[#ff385c]">{"★".repeat(review.rating)}</span>
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">{review.comment}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>

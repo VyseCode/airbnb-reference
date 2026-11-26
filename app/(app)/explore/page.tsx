@@ -109,7 +109,11 @@ export default async function ExplorePage({
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {result.items.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              signedIn={Boolean(session)}
+            />
           ))}
         </div>
       )}

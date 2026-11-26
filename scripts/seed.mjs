@@ -265,6 +265,14 @@ const bookings = [
     guests: 2,
     status: "completed",
   },
+  {
+    listing: 4,
+    guest: 1,
+    checkIn: "2026-08-10",
+    checkOut: "2026-08-13",
+    guests: 1,
+    status: "completed",
+  },
 ];
 
 const reviews = [
