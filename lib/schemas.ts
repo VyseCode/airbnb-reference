@@ -45,7 +45,7 @@ export const bookingCreateSchema = z.object({
 });
 
 export const bookingActionSchema = z.object({
-  action: z.enum(["confirm", "cancel"]),
+  action: z.enum(["confirm", "cancel", "complete"]),
 });
 
 export const reviewCreateSchema = z.object({

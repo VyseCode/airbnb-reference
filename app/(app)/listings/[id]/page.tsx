@@ -6,6 +6,9 @@ import { connectDB } from "@/lib/db";
 import { getListingById } from "@/lib/queries";
 import { Avatar } from "@/components/Avatar";
 import { ListingActions } from "@/components/ListingActions";
+import { BookingWidget } from "@/components/BookingWidget";
+import { BlockedDatesManager } from "@/components/BlockedDatesManager";
+import { BlockedDate } from "@/models/BlockedDate";
 
 export const metadata = { title: "Stay details" };
 
@@ -19,7 +22,10 @@ export default async function ListingDetailPage({
 
   const session = await getSession();
   await connectDB();
-  const listing = await getListingById(id, session?.userId ?? "");
+  const [listing, blockedDates] = await Promise.all([
+    getListingById(id, session?.userId ?? ""),
+    BlockedDate.find({ listing: id }).select("date -_id").sort({ date: 1 }).lean(),
+  ]);
   if (!listing) notFound();
 
   const isHost = session?.userId === listing.host.id;
@@ -107,15 +113,26 @@ export default async function ListingDetailPage({
           </div>
         </div>
 
-        <aside>
-          <div className="sticky top-20 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-2xl font-semibold text-slate-900">
-              ${listing.pricePerNight} <span className="text-base font-normal text-slate-500">/ night</span>
+        <aside className="space-y-5">
+          <div className="sticky top-20">
+            <p className="mb-3 text-2xl font-semibold text-slate-900">
+              ${listing.pricePerNight}{" "}
+              <span className="text-base font-normal text-slate-500">/ night</span>
             </p>
-            <p className="mt-2 text-sm text-slate-500">
-              Booking opens on this page once availability is configured.
-            </p>
+            <BookingWidget
+              listingId={listing.id}
+              pricePerNight={listing.pricePerNight}
+              capacity={listing.capacity}
+              isHost={isHost}
+              signedIn={Boolean(session)}
+            />
           </div>
+          {isHost && (
+            <BlockedDatesManager
+              listingId={listing.id}
+              initialDates={blockedDates.map((item) => item.date)}
+            />
+          )}
         </aside>
       </div>
     </section>

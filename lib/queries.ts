@@ -270,6 +270,30 @@ export async function getBookingsForUser(
   }));
 }
 
+export async function getBookingById(id: string): Promise<BookingDTO | null> {
+  if (!Types.ObjectId.isValid(id)) return null;
+  const doc = (await Booking.findById(id)
+    .populate("listing", "title images host")
+    .populate("host", "name avatarUrl")
+    .populate("guest", "name avatarUrl")
+    .lean()) as unknown as LeanBooking | null;
+  if (!doc) return null;
+  const review = await Review.findOne({ booking: doc._id }).select("_id").lean();
+  return {
+    ...toBookingDTO(doc),
+    reviewId: review?._id.toString() ?? null,
+  };
+}
+
+export async function getHostListings(userId: string): Promise<ListingDTO[]> {
+  const docs = (await Listing.find({ host: userId })
+    .populate("host", "name avatarUrl")
+    .sort({ createdAt: -1 })
+    .limit(100)
+    .lean()) as unknown as LeanListing[];
+  return docs.map((doc) => toListingDTO(doc, false));
+}
+
 export async function getListingReviews(listingId: string): Promise<ReviewDTO[]> {
   if (!Types.ObjectId.isValid(listingId)) return [];
   const docs = (await Review.find({ listing: listingId })
