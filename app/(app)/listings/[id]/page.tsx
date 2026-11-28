@@ -14,6 +14,7 @@ import { Review } from "@/models/Review";
 import { isReviewOpen } from "@/lib/stayCompletion";
 import { ReviewForm } from "@/components/ReviewForm";
 import { WishlistButton } from "@/components/WishlistButton";
+import { ListingGallery } from "@/components/ListingGallery";
 
 export const metadata = { title: "Stay details" };
 
@@ -91,20 +92,7 @@ export default async function ListingDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-            {listing.images[0] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={listing.images[0]}
-                alt={listing.title}
-                className="aspect-[16/10] w-full object-cover"
-              />
-            ) : (
-              <div className="flex aspect-[16/10] items-center justify-center text-slate-400">
-                No photo yet
-              </div>
-            )}
-          </div>
+          <ListingGallery images={listing.images} title={listing.title} />
 
           <div className="rounded-xl border border-slate-200 bg-white p-6">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PROPERTY_TYPES, type ListingDTO } from "@/lib/types";
+import { ImageGalleryManager } from "@/components/ImageGalleryManager";
 
 const inputClass =
   "w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-[#ff385c] focus:ring-1 focus:ring-[#ff385c]";
@@ -23,7 +24,8 @@ export function ListingForm({ initial }: ListingFormProps) {
   const [price, setPrice] = useState(String(initial?.pricePerNight ?? 100));
   const [capacity, setCapacity] = useState(String(initial?.capacity ?? 2));
   const [amenities, setAmenities] = useState((initial?.amenities ?? []).join(", "));
-  const [images, setImages] = useState((initial?.images ?? []).join(", "));
+  const [images, setImages] = useState(initial?.images ?? []);
+  const [queuedFiles, setQueuedFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -45,10 +47,6 @@ export function ListingForm({ initial }: ListingFormProps) {
         .split(",")
         .map((item) => item.trim())
         .filter(Boolean),
-      images: images
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
     };
 
     try {
@@ -67,6 +65,19 @@ export function ListingForm({ initial }: ListingFormProps) {
       if (!response.ok || !data.listing) {
         setError(data.error ?? "Could not save your listing");
         return;
+      }
+      if (!editing && queuedFiles.length > 0) {
+        const form = new FormData();
+        for (const file of queuedFiles) form.append("images", file);
+        const upload = await fetch(`/api/listings/${data.listing.id}/images`, {
+          method: "POST",
+          body: form,
+        });
+        if (!upload.ok) {
+          const uploadData = (await upload.json().catch(() => ({}))) as { error?: string };
+          setError(uploadData.error ?? "Listing saved, but photos could not be uploaded");
+          return;
+        }
       }
       router.push(`/listings/${data.listing.id}`);
       router.refresh();
@@ -193,17 +204,12 @@ export function ListingForm({ initial }: ListingFormProps) {
             />
           </label>
 
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
-              Image paths or URLs (comma separated)
-            </span>
-            <input
-              value={images}
-              onChange={(event) => setImages(event.target.value)}
-              className={inputClass}
-              placeholder="/images/stay-1.svg"
-            />
-          </label>
+          <ImageGalleryManager
+            listingId={initial?.id}
+            images={images}
+            onImagesChange={setImages}
+            onFilesChange={setQueuedFiles}
+          />
         </div>
 
         {error && (

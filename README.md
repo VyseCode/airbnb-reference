@@ -6,6 +6,7 @@ A reference implementation inspired by **Airbnb**: a stays marketplace where use
 
 - **Accounts** — register, login, logout, and session lookup; bcrypt password hashing and signed JWT cookies.
 - **Listings** — create, read, update, delete; property type, location, nightly price, capacity, amenities, and images; only the host may edit or delete.
+- **Photo gallery** — hosts upload multiple JPEG/PNG/WebP/GIF photos, reorder them (first photo is the cover), delete them, and get automatic file cleanup when a listing is deleted. Uploads are served from a CDN-cacheable origin route with immutable URLs and responsive optimization.
 - **Search & discovery** — keyword and location search, type/price/guests/amenity filters, date availability filtering, sorting, and capped pagination.
 - **Availability** — per-listing host-blocked dates and a public availability feed.
 - **Bookings** — nightly subtotal + 12% service fee, overlap/date-range/capacity guards, pending → confirmed → completed/cancelled states, and host/guest confirm/cancel permissions.
@@ -33,6 +34,8 @@ npm run dev
 | `MONGODB_URI` | `mongodb://127.0.0.1:27017/airbnb_ref` | MongoDB connection; seed refuses to wipe any other database. |
 | `JWT_SECRET` | long random string | Signs session tokens. |
 | `CRON_SECRET` | long random string | Bearer token required by the stay-completion cron endpoint. |
+| `CDN_BASE_URL` | `https://cdn.example.com` | Optional CDN origin for uploaded photos; the CDN must proxy `/cdn/*` to the app. Unset means same-origin `/cdn/*` delivery. |
+| `UPLOAD_DIR` | `/var/data/stayly-uploads` | Optional absolute path for uploaded files; defaults to `.data/uploads`. |
 
 ## Seed
 
@@ -64,7 +67,11 @@ Demo accounts (all password `password123`):
 | POST | `/api/listings` | user | Create listing |
 | GET | `/api/listings/[id]` | – | Listing detail |
 | PATCH | `/api/listings/[id]` | host | Update listing |
-| DELETE | `/api/listings/[id]` | host | Delete listing and related data |
+| DELETE | `/api/listings/[id]` | host | Delete listing, related data and stored photos |
+| POST | `/api/listings/[id]/images` | host | Upload photos (multipart field `images`, repeatable) |
+| PATCH | `/api/listings/[id]/images` | host | Reorder photos (`{ "order": [url, ...] }`) |
+| DELETE | `/api/listings/[id]/images` | host | Delete one photo (`{ "url": "..." }`) |
+| GET | `/cdn/listings/[listingId]/[imageId].[ext]` | – | Serve a stored photo with immutable CDN cache headers and ETag/304 support |
 | GET | `/api/listings/[id]/availability` | – | Blocked dates and active booking ranges |
 | GET | `/api/listings/[id]/blocked-dates` | – | Blocked dates |
 | POST | `/api/listings/[id]/blocked-dates` | host | Block a date |
@@ -93,7 +100,7 @@ Guest review invitations and host completion notices are persisted in the `notif
 | `/explore` | Searchable listing grid |
 | `/listings/new` | Create a listing |
 | `/listings/[id]` | Detail, availability, booking widget, reviews, host controls |
-| `/listings/[id]/edit` | Host-only edit form |
+| `/listings/[id]/edit` | Host-only edit form and photo gallery manager (upload, reorder, delete) |
 | `/trips` | Guest bookings |
 | `/host` | Host listings and requests |
 | `/wishlist` | Saved listings |
@@ -103,10 +110,10 @@ Guest review invitations and host completion notices are persisted in the `notif
 - There is no payment integration; booking is a request that the host confirms, and totals are informational.
 - Manual completion is still available, but scheduled completion is the default path; the cron endpoint must be invoked by a scheduler.
 - Availability guards are enforced in application code; concurrent booking requests for the same nights are not wrapped in a MongoDB transaction (standalone MongoDB).
-- Images are local SVG placeholders; there is no image upload.
+- Uploaded photos live in the local filesystem by default (`.data/uploads`); mount a shared volume or set `UPLOAD_DIR` for multi-instance deployments. `CDN_BASE_URL` rewrites delivered URLs to a CDN that must proxy `/cdn/*` to the app; no cloud storage provider is integrated and purges on delete must be handled by the CDN (immutable URLs make stale copies harmless). Placeholder images remain local SVGs.
 - Text search uses escaped regexes rather than a dedicated search index.
 - Email verification, password reset, messaging, and cancellation refunds are out of scope; stay notifications are in-app records plus a console delivery hook rather than delivered email.
 
 ## Verification
 
-`npm run lint`, `npm run typecheck`, `npm run build`, and `npm run seed` all pass; the HTTP matrix covers 101 checks across auth, listing CRUD, filters/pagination, booking edge cases (overlap, invalid range, capacity, blocked dates, permissions), reviews, wishlists, and page status codes.
+`npm run lint`, `npm run typecheck`, `npm run build`, and `npm run seed` all pass; the HTTP matrix covers auth, listing CRUD, filters/pagination, booking edge cases (overlap, invalid range, capacity, blocked dates, permissions), reviews, wishlists, photo upload/reorder/delete/CDN delivery and cleanup, and page status codes. Uploads are validated by MIME type, file signature, and size (8 MB), capped at 10 photos per listing, and only writable by the host.

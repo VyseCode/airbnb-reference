@@ -10,6 +10,7 @@ import { Review } from "@/models/Review";
 import { Wishlist } from "@/models/Wishlist";
 import { listingUpdateSchema, objectIdSchema } from "@/lib/schemas";
 import { getListingById } from "@/lib/queries";
+import { deleteListingImages } from "@/lib/imageStorage";
 
 const paramsSchema = z.object({
   id: objectIdSchema,
@@ -90,7 +91,7 @@ export async function DELETE(
 
     const { id } = paramsSchema.parse(await context.params);
     await connectDB();
-    const listing = await Listing.findById(id).select("host");
+    const listing = await Listing.findById(id).select("host images");
     if (!listing) return fail("Listing not found", 404);
     if (listing.host.toString() !== session.userId) {
       return fail("Only the host can delete this listing", 403);
@@ -103,7 +104,9 @@ export async function DELETE(
       Review.deleteMany({ listing: objectId }),
       Wishlist.deleteMany({ listing: objectId }),
     ]);
+    const storedImages = listing.get("images") as string[] | undefined;
     await Listing.deleteOne({ _id: objectId });
+    if (storedImages?.length) await deleteListingImages(id);
 
     return ok({ ok: true });
   } catch (error) {
